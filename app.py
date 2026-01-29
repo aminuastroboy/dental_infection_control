@@ -7,8 +7,7 @@ st.set_page_config(page_title="Dental Infection Control System", layout="centere
 
 # ---------------- DATABASE INITIALIZATION ----------------
 def init_db():
-    # Streamlit Cloud writable folder
-    DB_PATH = "/tmp/database.db"
+    DB_PATH = "/tmp/database.db"  # Streamlit Cloud writable folder
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     cur = conn.cursor()
 
@@ -44,7 +43,7 @@ def init_db():
     conn.close()
     return DB_PATH
 
-# Initialize DB and get path
+# Initialize DB
 DB_PATH = init_db()
 
 # ---------------- SESSION STATE ----------------
@@ -53,7 +52,7 @@ if "logged_in" not in st.session_state:
     st.session_state.role = None
 
 # ---------------- LOGIN ----------------
-if not st.session_state.logged_in:
+def show_login():
     st.title("🦷 Dental Infection Control System")
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
@@ -68,13 +67,11 @@ if not st.session_state.logged_in:
         if user and check_password_hash(user[2], password):
             st.session_state.logged_in = True
             st.session_state.role = user[3]
-            st.success("Login successful!")
-            st.stop()  # stop current run so dashboard will show on next run
         else:
             st.error("Invalid credentials")
 
 # ---------------- STUDENT DASHBOARD ----------------
-elif st.session_state.role == "student":
+def show_student_dashboard():
     st.subheader("🧑‍🎓 Student Dashboard")
     st.info("Please answer all questions honestly. Your responses are confidential.")
 
@@ -106,7 +103,6 @@ elif st.session_state.role == "student":
         conn.close()
 
         st.success("Assessment submitted successfully!")
-
         st.markdown("### 📊 Your Results")
         st.write("Knowledge Score:", knowledge)
         st.write("Awareness Score:", awareness)
@@ -116,10 +112,9 @@ elif st.session_state.role == "student":
     if st.button("Logout"):
         st.session_state.logged_in = False
         st.session_state.role = None
-        st.stop()  # stop current run to return to login page
 
 # ---------------- ADMIN DASHBOARD ----------------
-elif st.session_state.role == "admin":
+def show_admin_dashboard():
     st.subheader("🧑‍💼 Admin Dashboard")
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     df = pd.read_sql_query("SELECT * FROM responses", conn)
@@ -136,4 +131,11 @@ elif st.session_state.role == "admin":
     if st.button("Logout"):
         st.session_state.logged_in = False
         st.session_state.role = None
-        st.stop()  # stop current run to return to login page
+
+# ---------------- MAIN ----------------
+if not st.session_state.logged_in:
+    show_login()
+elif st.session_state.role == "student":
+    show_student_dashboard()
+elif st.session_state.role == "admin":
+    show_admin_dashboard()
