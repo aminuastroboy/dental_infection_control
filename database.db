@@ -1,1 +1,13 @@
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT,
+    password TEXT,
+    role TEXT
+);
 
+CREATE TABLE responses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    knowledge INTEGER,
+    awareness INTEGER,
+    practice INTEGER
+);
