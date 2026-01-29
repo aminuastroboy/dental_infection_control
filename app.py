@@ -9,7 +9,6 @@ def get_db():
     return sqlite3.connect("database.db")
 
 conn = sqlite3.connect("database.db")
-    cur = conn.cursor()
 
     # Users table
     cur.execute("""
