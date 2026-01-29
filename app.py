@@ -39,6 +39,14 @@ def init_db():
             ("admin@test.com", generate_password_hash("admin123"), "admin")
         )
 
+    # Insert default student if not exists
+    cur.execute("SELECT 1 FROM users WHERE email=?", ("student1@test.com",))
+    if cur.fetchone() is None:
+        cur.execute(
+            "INSERT INTO users (email, password, role) VALUES (?,?,?)",
+            ("student1@test.com", generate_password_hash("student123"), "student")
+        )
+
     conn.commit()
     conn.close()
     return DB_PATH
