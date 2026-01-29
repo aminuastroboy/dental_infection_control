@@ -1,14 +1,17 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-from werkzeug.security import check_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
+import os
 
 st.set_page_config(page_title="Dental Infection Control System", layout="centered")
 
-def get_db():
-    return sqlite3.connect("database.db")
+# ---------------- DATABASE INITIALIZATION ----------------
+DB_PATH = os.path.join(os.getcwd(), "database.db")
 
-conn = sqlite3.connect("database.db")
+def init_db():
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    cur = conn.cursor()
 
     # Users table
     cur.execute("""
@@ -33,47 +36,50 @@ conn = sqlite3.connect("database.db")
     # Insert default admin if not exists
     cur.execute("SELECT * FROM users WHERE email=?", ("admin@test.com",))
     if cur.fetchone() is None:
-        from werkzeug.security import generate_password_hash
         cur.execute("INSERT INTO users (email, password, role) VALUES (?,?,?)",
                     ("admin@test.com", generate_password_hash("admin123"), "admin"))
 
     conn.commit()
     conn.close()
 
-# ---------------- LOGIN ----------------
-st.title("🦷 Dental Infection Control System")
+# Initialize DB on startup
+init_db()
 
+# ---------------- SESSION STATE ----------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
+    st.session_state.role = None
 
+# ---------------- LOGIN ----------------
 if not st.session_state.logged_in:
+    st.title("🦷 Dental Infection Control System")
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
     if st.button("Login"):
-        db = get_db()
-        cur = db.cursor()
+        conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+        cur = conn.cursor()
         cur.execute("SELECT * FROM users WHERE email=?", (email,))
         user = cur.fetchone()
+        conn.close()
 
         if user and check_password_hash(user[2], password):
             st.session_state.logged_in = True
             st.session_state.role = user[3]
-            st.success("Login successful")
+            st.success("Login successful!")
             st.experimental_rerun()
         else:
-            st.error("Invalid login credentials")
+            st.error("Invalid credentials")
 
-# ---------------- STUDENT VIEW ----------------
+# ---------------- STUDENT DASHBOARD ----------------
 elif st.session_state.role == "student":
     st.subheader("🧑‍🎓 Student Dashboard")
+    st.info("Please answer all questions honestly. Your responses are confidential.")
 
-    st.info("Please answer all questions honestly.")
-
-    st.markdown("### SECTION A: Knowledge of Sterilization")
+    # Questionnaire
+    st.markdown("### SECTION A: Knowledge")
     k1 = st.radio("Autoclaving is used to:", ["Destroy microorganisms", "Clean instruments"])
     k2 = st.radio("Which is a sterilization method?", ["Steam sterilization", "Washing with water"])
-
     knowledge = (1 if k1 == "Destroy microorganisms" else 0) + \
                 (1 if k2 == "Steam sterilization" else 0)
 
@@ -88,13 +94,12 @@ elif st.session_state.role == "student":
     practice = p1 + p2
 
     if st.button("Submit Assessment"):
-        db = get_db()
-        cur = db.cursor()
-        cur.execute(
-            "INSERT INTO responses (knowledge, awareness, practice) VALUES (?,?,?)",
-            (knowledge, awareness, practice)
-        )
-        db.commit()
+        conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+        cur = conn.cursor()
+        cur.execute("INSERT INTO responses (knowledge, awareness, practice) VALUES (?,?,?)",
+                    (knowledge, awareness, practice))
+        conn.commit()
+        conn.close()
 
         st.success("Assessment submitted successfully!")
 
@@ -102,19 +107,19 @@ elif st.session_state.role == "student":
         st.write("Knowledge Score:", knowledge)
         st.write("Awareness Score:", awareness)
         st.write("Practice Score:", practice)
-
-        st.info("Recommendation: Improve adherence to sterilization and infection control guidelines.")
+        st.info("Recommendation: Improve adherence to infection control guidelines.")
 
     if st.button("Logout"):
         st.session_state.logged_in = False
+        st.session_state.role = None
         st.experimental_rerun()
 
-# ---------------- ADMIN VIEW ----------------
+# ---------------- ADMIN DASHBOARD ----------------
 elif st.session_state.role == "admin":
     st.subheader("🧑‍💼 Admin Dashboard")
-
-    db = get_db()
-    df = pd.read_sql_query("SELECT * FROM responses", db)
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    df = pd.read_sql_query("SELECT * FROM responses", conn)
+    conn.close()
 
     st.write("### Collected Responses")
     st.dataframe(df)
@@ -126,4 +131,5 @@ elif st.session_state.role == "admin":
 
     if st.button("Logout"):
         st.session_state.logged_in = False
+        st.session_state.role = None
         st.experimental_rerun()
