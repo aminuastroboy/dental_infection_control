@@ -8,6 +8,39 @@ st.set_page_config(page_title="Dental Infection Control System", layout="centere
 def get_db():
     return sqlite3.connect("database.db")
 
+conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    # Users table
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT UNIQUE,
+        password TEXT,
+        role TEXT
+    )
+    """)
+
+    # Responses table
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS responses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        knowledge INTEGER,
+        awareness INTEGER,
+        practice INTEGER
+    )
+    """)
+
+    # Insert default admin if not exists
+    cur.execute("SELECT * FROM users WHERE email=?", ("admin@test.com",))
+    if cur.fetchone() is None:
+        from werkzeug.security import generate_password_hash
+        cur.execute("INSERT INTO users (email, password, role) VALUES (?,?,?)",
+                    ("admin@test.com", generate_password_hash("admin123"), "admin"))
+
+    conn.commit()
+    conn.close()
+
 # ---------------- LOGIN ----------------
 st.title("🦷 Dental Infection Control System")
 
