@@ -7,9 +7,9 @@ import os
 st.set_page_config(page_title="Dental Infection Control System", layout="centered")
 
 # ---------------- DATABASE INITIALIZATION ----------------
-DB_PATH = os.path.join(os.getcwd(), "database.db")
-
 def init_db():
+    # Use Streamlit Cloud writable folder
+    DB_PATH = "/tmp/database.db"
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     cur = conn.cursor()
 
@@ -17,9 +17,9 @@ def init_db():
     cur.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT UNIQUE,
-        password TEXT,
-        role TEXT
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL
     )
     """)
 
@@ -27,23 +27,24 @@ def init_db():
     cur.execute("""
     CREATE TABLE IF NOT EXISTS responses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        knowledge INTEGER,
-        awareness INTEGER,
-        practice INTEGER
+        knowledge INTEGER NOT NULL,
+        awareness INTEGER NOT NULL,
+        practice INTEGER NOT NULL
     )
     """)
 
     # Insert default admin if not exists
-    cur.execute("SELECT * FROM users WHERE email=?", ("admin@test.com",))
+    cur.execute("SELECT 1 FROM users WHERE email=?", ("admin@test.com",))
     if cur.fetchone() is None:
         cur.execute("INSERT INTO users (email, password, role) VALUES (?,?,?)",
                     ("admin@test.com", generate_password_hash("admin123"), "admin"))
 
     conn.commit()
     conn.close()
+    return DB_PATH
 
-# Initialize DB on startup
-init_db()
+# Initialize DB and get path
+DB_PATH = init_db()
 
 # ---------------- SESSION STATE ----------------
 if "logged_in" not in st.session_state:
@@ -96,8 +97,10 @@ elif st.session_state.role == "student":
     if st.button("Submit Assessment"):
         conn = sqlite3.connect(DB_PATH, check_same_thread=False)
         cur = conn.cursor()
-        cur.execute("INSERT INTO responses (knowledge, awareness, practice) VALUES (?,?,?)",
-                    (knowledge, awareness, practice))
+        cur.execute(
+            "INSERT INTO responses (knowledge, awareness, practice) VALUES (?,?,?)",
+            (knowledge, awareness, practice)
+        )
         conn.commit()
         conn.close()
 
